@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Home Base</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
+  :root {
+    --cream:#F7F4EF;--warm-white:#FDFBF8;--ink:#1C1917;--ink-light:#57534E;
+    --ink-faint:#A8A29E;--accent:#C2410C;--accent-soft:#FED7AA;
+    --green:#15803D;--border:#E7E2DC;
+    --shadow:0 1px 3px rgba(28,25,23,0.08);--shadow-md:0 4px 16px rgba(28,25,23,0.12);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--ink);min-height:100vh;}
+  #login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+  .login-card{background:var(--warm-white);border:1px solid var(--border);border-radius:16px;padding:40px 36px;width:100%;max-width:360px;box-shadow:var(--shadow-md);text-align:center;}
+  .login-card h1{font-family:'DM Serif Display',serif;font-size:2rem;margin-bottom:4px;}
+  .login-card .tagline{color:var(--ink-faint);font-size:0.85rem;margin-bottom:32px;}
+  .login-card input{width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:0.95rem;background:var(--cream);color:var(--ink);margin-bottom:12px;outline:none;transition:border-color .2s;}
+  .login-card input:focus{border-color:var(--accent);}
+  .login-btn{width:100%;padding:13px;background:var(--ink);color:white;border:none;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:0.95rem;font-weight:600;cursor:pointer;transition:background .2s;margin-top:4px;}
+  .login-btn:hover{background:var(--accent);}
+  .login-error{color:var(--accent);font-size:0.82rem;margin-top:8px;}
+  #app{display:none;}
+  .sync-bar{background:#FEF3C7;color:#92400E;font-size:0.78rem;text-align:center;padding:6px;display:none;}
+  .sync-bar.visible{display:block;}
+  header{background:var(--warm-white);border-bottom:1px solid var(--border);padding:14px 20px;position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;}
+  header h1{font-family:'DM Serif Display',serif;font-size:1.4rem;}
+  .week-label{font-size:0.75rem;color:var(--ink-faint);font-weight:500;}
+  .logout-btn{background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:0.78rem;color:var(--ink-light);cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;}
+  .logout-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .stats-bar{display:flex;gap:16px;padding:12px 16px;background:var(--warm-white);border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none;}
+  .stats-bar::-webkit-scrollbar{display:none;}
+  .stat{display:flex;flex-direction:column;align-items:center;min-width:56px;}
+  .stat-num{font-family:'DM Serif Display',serif;font-size:1.3rem;line-height:1;}
+  .stat-label{font-size:0.65rem;color:var(--ink-faint);font-weight:500;text-transform:uppercase;letter-spacing:.04em;margin-top:2px;white-space:nowrap;}
+  .stat-divider{width:1px;background:var(--border);align-self:stretch;}
+  .filter-section{background:var(--warm-white);border-bottom:1px solid var(--border);padding:10px 16px;}
+  .filter-label{font-size:0.67rem;font-weight:600;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;}
+  .filter-group{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;}
+  .filter-group:last-child{margin-bottom:0;}
+  .filter-chip{padding:5px 12px;border-radius:20px;font-size:0.76rem;font-weight:500;border:1.5px solid var(--border);background:transparent;color:var(--ink-light);cursor:pointer;white-space:nowrap;transition:all .15s;font-family:'DM Sans',sans-serif;}
+  .filter-chip.active{background:var(--ink);color:white;border-color:var(--ink);}
+  .filter-chip.active.fc-matt{background:#1D4ED8;border-color:#1D4ED8;}
+  .filter-chip.active.fc-alison{background:#9D174D;border-color:#9D174D;}
+  .filter-chip.active.fc-week{background:#14532D;border-color:#14532D;}
+  .filter-chip.active.fc-soon{background:#92400E;border-color:#92400E;}
+  .filter-chip.active.fc-month{background:#9A3412;border-color:#9A3412;}
+  .filter-clear{font-size:0.72rem;color:var(--accent);cursor:pointer;border:none;background:none;font-family:'DM Sans',sans-serif;padding:5px 4px;}
+  .filter-clear:hover{text-decoration:underline;}
+  main{padding:16px;max-width:680px;margin:0 auto;}
+  .add-task-bar{background:var(--warm-white);border:1.5px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:20px;box-shadow:var(--shadow);}
+  .add-row{display:flex;gap:8px;align-items:center;}
+  .add-task-bar input[type=text]{flex:1;border:none;background:transparent;font-family:'DM Sans',sans-serif;font-size:0.9rem;color:var(--ink);outline:none;}
+  .add-task-bar input::placeholder{color:var(--ink-faint);}
+  .add-expand-btn{background:none;border:none;cursor:pointer;color:var(--ink-faint);font-size:1rem;padding:4px 6px;transition:color .2s;}
+  .add-expand-btn:hover{color:var(--ink);}
+  .add-submit-btn{background:var(--ink);color:white;border:none;border-radius:8px;padding:8px 16px;font-family:'DM Sans',sans-serif;font-size:0.82rem;font-weight:600;cursor:pointer;transition:background .2s;white-space:nowrap;}
+  .add-submit-btn:hover{background:var(--accent);}
+  .add-details{display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);gap:8px;flex-wrap:wrap;}
+  .add-details.open{display:flex;}
+  .add-details select{flex:1;min-width:110px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:0.82rem;background:var(--cream);color:var(--ink);outline:none;}
+  .category-section{margin-bottom:24px;}
+  .category-header{display:flex;align-items:center;justify-content:space-between;padding:10px 4px;cursor:pointer;user-select:none;}
+  .category-title{display:flex;align-items:center;gap:10px;}
+  .category-name{font-family:'DM Serif Display',serif;font-size:1.05rem;}
+  .category-count{background:var(--cream);border:1px solid var(--border);border-radius:10px;padding:2px 8px;font-size:0.72rem;color:var(--ink-light);font-weight:500;}
+  .category-toggle{color:var(--ink-faint);font-size:0.75rem;transition:transform .2s;}
+  .category-toggle.collapsed{transform:rotate(-90deg);}
+  .task-list{background:var(--warm-white);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);}
+  .empty-state{text-align:center;padding:28px 20px;color:var(--ink-faint);font-size:0.85rem;}
+  .loading-state{text-align:center;padding:60px 20px;color:var(--ink-faint);font-size:0.9rem;}
+  .task-item{border-bottom:1px solid var(--border);}
+  .task-item:last-child{border-bottom:none;}
+  .task-item.completed{opacity:.42;}
+  .task-item.completed .task-title{text-decoration:line-through;color:var(--ink-faint);}
+  .task-row{display:flex;align-items:flex-start;gap:12px;padding:13px 16px;cursor:pointer;transition:background .15s;}
+  .task-row:hover{background:var(--cream);}
+  .task-check{width:20px;height:20px;border-radius:50%;border:2px solid var(--border);background:transparent;cursor:pointer;flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;transition:all .2s;position:relative;}
+  .task-check:hover{border-color:var(--green);}
+  .task-check.checked{background:var(--green);border-color:var(--green);}
+  .task-check.checked::after{content:'✓';color:white;font-size:.65rem;font-weight:700;}
+  .task-body{flex:1;min-width:0;}
+  .task-title{font-size:.9rem;font-weight:500;line-height:1.4;margin-bottom:4px;}
+  .task-meta{display:flex;flex-wrap:wrap;gap:5px;align-items:center;}
+  .task-action-preview{font-size:.76rem;color:var(--ink-light);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .task-chevron{color:var(--ink-faint);font-size:.85rem;flex-shrink:0;margin-top:2px;transition:transform .2s;}
+  .task-chevron.open{transform:rotate(90deg);}
+  .tag{font-size:.69rem;font-weight:500;padding:2px 7px;border-radius:10px;white-space:nowrap;}
+  .tag-owner-matt{background:#DBEAFE;color:#1D4ED8;}
+  .tag-owner-alison{background:#FCE7F3;color:#9D174D;}
+  .tag-owner-both{background:#F3E8FF;color:#6B21A8;}
+  .tag-priority-soon{background:#FEF3C7;color:#92400E;}
+  .tag-priority-month{background:var(--accent-soft);color:#9A3412;}
+  .tag-priority-later{background:#F1F5F9;color:#475569;}
+  .tag-priority-week{background:#DCFCE7;color:#14532D;}
+  .tag-note{background:#F0FDF4;color:#166534;}
+  .tag-photo{background:#EFF6FF;color:#1E40AF;}
+  .task-detail{display:none;border-top:1px solid var(--border);background:#FAFAF8;padding:16px;}
+  .task-detail.open{display:block;}
+  .dl{font-size:.68rem;font-weight:600;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;margin-top:14px;}
+  .dl:first-child{margin-top:0;}
+  .notes-area{width:100%;min-height:80px;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.85rem;background:var(--warm-white);color:var(--ink);outline:none;resize:vertical;line-height:1.5;transition:border-color .2s;}
+  .notes-area:focus{border-color:var(--accent);}
+  .photos-grid{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px;}
+  .photo-thumb{width:72px;height:72px;border-radius:8px;object-fit:cover;border:1px solid var(--border);cursor:pointer;transition:opacity .2s;}
+  .photo-thumb:hover{opacity:.8;}
+  .photo-add-btn{width:72px;height:72px;border-radius:8px;border:1.5px dashed var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.4rem;color:var(--ink-faint);transition:all .2s;}
+  .photo-add-btn:hover{border-color:var(--ink-light);color:var(--ink-light);}
+  .photo-input{display:none;}
+  .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .detail-field label{display:block;font-size:.68rem;font-weight:600;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;}
+  .detail-field input,.detail-field select{width:100%;padding:7px 9px;border:1.5px solid var(--border);border-radius:7px;font-family:'DM Sans',sans-serif;font-size:.8rem;background:var(--cream);color:var(--ink);outline:none;}
+  .detail-field input:focus,.detail-field select:focus{border-color:var(--accent);}
+  .detail-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:14px;}
+  .btn-sm{padding:7px 16px;border-radius:7px;font-size:.78rem;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;border:none;transition:all .15s;}
+  .btn-save{background:var(--ink);color:white;}
+  .btn-save:hover{background:var(--accent);}
+  .btn-delete{background:transparent;color:var(--ink-faint);border:1px solid var(--border)!important;}
+  .btn-delete:hover{color:var(--accent);border-color:var(--accent)!important;}
+  .completed-section{margin-top:6px;}
+  .completed-toggle{font-size:.78rem;color:var(--ink-faint);cursor:pointer;display:flex;align-items:center;gap:6px;padding:8px 4px;user-select:none;}
+  .completed-toggle:hover{color:var(--ink-light);}
+  .lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:1000;align-items:center;justify-content:center;}
+  .lightbox.open{display:flex;}
+  .lightbox img{max-width:92vw;max-height:88vh;border-radius:8px;}
+  .lb-close{position:absolute;top:16px;right:20px;color:white;font-size:2rem;cursor:pointer;background:none;border:none;line-height:1;}
+  .lb-delete{position:absolute;bottom:20px;right:20px;background:var(--accent);color:white;border:none;border-radius:8px;padding:8px 16px;font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:600;cursor:pointer;}
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-card">
+    <h1>Home Base</h1>
+    <p class="tagline">Just for Matt & Alison</p>
+    <input type="text" id="login-user" placeholder="Who are you?" autocomplete="off">
+    <input type="password" id="login-pass" placeholder="Password" autocomplete="off">
+    <button class="login-btn" onclick="tryLogin()">Enter</button>
+    <p class="login-error" id="login-error"></p>
+  </div>
+</div>
+
+<div id="app">
+  <div class="sync-bar" id="sync-bar">Saving…</div>
+  <header>
+    <h1>Home Base</h1>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span class="week-label" id="week-label"></span>
+      <button class="logout-btn" onclick="logout()">Sign out</button>
+    </div>
+  </header>
+  <div class="stats-bar" id="stats-bar"></div>
+  <div class="filter-section">
+    <div class="filter-label">Owner</div>
+    <div class="filter-group">
+      <button class="filter-chip fc-matt" data-f="owner" data-v="Matt" onclick="toggleFilter(this)">Matt</button>
+      <button class="filter-chip fc-alison" data-f="owner" data-v="Alison" onclick="toggleFilter(this)">Alison</button>
+      <button class="filter-chip" data-f="owner" data-v="Both" onclick="toggleFilter(this)">Both</button>
+    </div>
+    <div class="filter-label">Priority</div>
+    <div class="filter-group">
+      <button class="filter-chip fc-week" data-f="priority" data-v="week" onclick="toggleFilter(this)">This Week</button>
+      <button class="filter-chip fc-soon" data-f="priority" data-v="soon" onclick="toggleFilter(this)">Soon</button>
+      <button class="filter-chip fc-month" data-f="priority" data-v="month" onclick="toggleFilter(this)">This Month</button>
+      <button class="filter-chip" data-f="priority" data-v="later" onclick="toggleFilter(this)">Longer Term</button>
+      <button class="filter-clear" onclick="clearFilters()">Clear all</button>
+    </div>
+  </div>
+  <main>
+    <div class="add-task-bar">
+      <div class="add-row">
+        <input type="text" id="new-task-title" placeholder="Add a task…" onkeydown="if(event.key==='Enter')quickAdd()">
+        <button class="add-expand-btn" onclick="toggleAddDetails()">⚙</button>
+        <button class="add-submit-btn" onclick="quickAdd()">Add</button>
+      </div>
+      <div class="add-details" id="add-details">
+        <select id="nc"><option>House</option><option>Kids &amp; School</option><option>Other</option><option>Future</option><option>Marvin List</option></select>
+        <select id="no"><option>Matt</option><option>Alison</option><option>Both</option></select>
+        <select id="np"><option value="week">This Week</option><option value="soon">Soon</option><option value="month">This Month</option><option value="later">Longer Term</option></select>
+      </div>
+    </div>
+    <div id="task-sections"><div class="loading-state">Loading your tasks…</div></div>
+  </main>
+</div>
+
+<div class="lightbox" id="lightbox">
+  <button class="lb-close" onclick="closeLightbox()">×</button>
+  <img id="lb-img" src="">
+  <button class="lb-delete" onclick="deletePhoto()">Remove photo</button>
+</div>
+
+<script>
+// ── CONFIG ───────────────────────────────────────────────────
+const SUPABASE_URL = 'https://pprxynhvsqytqjfdaqgq.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_p-RWGuGIldeU-_35OC2Cwg_lU6e-ohk';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const USERS = { 'matt':'homebase2024', 'alison':'homebase2024' };
+const CATS = ['House','Kids & School','Other','Future','Marvin List'];
+
+let tasks = [];
+let AF = { owner: new Set(), priority: new Set() };
+let lbTask = null, lbIdx = null;
+let saveTimer = null;
+
+// ── HELPERS ──────────────────────────────────────────────────
+function uid(){ return Math.random().toString(36).slice(2)+Date.now().toString(36); }
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function weekLabel(){
+  const n=new Date(),s=new Date(n);
+  s.setDate(n.getDate()-n.getDay()+1);
+  return 'Week of '+s.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+function showSync(msg){ const b=document.getElementById('sync-bar'); b.textContent=msg; b.classList.add('visible'); }
+function hideSync(){ document.getElementById('sync-bar').classList.remove('visible'); }
+
+// ── AUTH ─────────────────────────────────────────────────────
+function tryLogin(){
+  const u=document.getElementById('login-user').value.trim().toLowerCase();
+  const p=document.getElementById('login-pass').value;
+  if(USERS[u]&&USERS[u]===p){ localStorage.setItem('hb_u',u); showApp(); }
+  else document.getElementById('login-error').textContent='Wrong username or password.';
+}
+function logout(){
+  localStorage.removeItem('hb_u');
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('login-user').value='';
+  document.getElementById('login-pass').value='';
+}
+async function showApp(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('week-label').textContent=weekLabel();
+  await loadTasks();
+  subscribeToChanges();
+}
+window.onload=()=>{ const u=localStorage.getItem('hb_u'); if(u&&USERS[u]) showApp(); };
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&document.getElementById('login-screen').style.display!=='none') tryLogin();
+  if(e.key==='Escape') closeLightbox();
+});
+
+// ── DATABASE ─────────────────────────────────────────────────
+async function loadTasks(){
+  const { data, error } = await sb.from('tasks').select('*').order('completed_at',{ascending:true,nullsFirst:true});
+  if(error){ console.error(error); return; }
+  // purge completed older than 14 days
+  const cut = Date.now() - 14*864e5;
+  tasks = (data||[]).map(dbToTask).filter(t => !t.completedAt || t.completedAt > cut);
+  render();
+}
+
+async function upsertTask(t){
+  showSync('Saving…');
+  const { error } = await sb.from('tasks').upsert(taskToDb(t));
+  if(error) console.error('Save error:',error);
+  else setTimeout(hideSync, 800);
+}
+
+async function removeTask(id){
+  showSync('Deleting…');
+  const { error } = await sb.from('tasks').delete().eq('id',id);
+  if(error) console.error('Delete error:',error);
+  else setTimeout(hideSync, 800);
+}
+
+function subscribeToChanges(){
+  sb.channel('tasks-changes')
+    .on('postgres_changes',{event:'*',schema:'public',table:'tasks'}, payload => {
+      const cut = Date.now() - 14*864e5;
+      if(payload.eventType==='DELETE'){
+        tasks = tasks.filter(t=>t.id!==payload.old.id);
+      } else if(payload.eventType==='INSERT'){
+        const t = dbToTask(payload.new);
+        if(!t.completedAt || t.completedAt > cut){
+          if(!tasks.find(x=>x.id===t.id)) tasks.unshift(t);
+        }
+      } else if(payload.eventType==='UPDATE'){
+        const t = dbToTask(payload.new);
+        const idx = tasks.findIndex(x=>x.id===t.id);
+        if(t.completedAt && t.completedAt <= cut){
+          if(idx>-1) tasks.splice(idx,1);
+        } else {
+          if(idx>-1) tasks[idx]=t; else tasks.unshift(t);
+        }
+      }
+      render();
+    })
+    .subscribe();
+}
+
+function dbToTask(r){
+  return {
+    id: r.id, title: r.title, category: r.category||'Other',
+    owner: r.owner||'Matt', priority: r.priority||'later',
+    actionWeek: r.action_week||'', actionMonth: r.action_month||'',
+    notes: r.notes||'', photos: r.photos ? JSON.parse(r.photos) : [],
+    completedAt: r.completed_at||null
+  };
+}
+function taskToDb(t){
+  return {
+    id: t.id, title: t.title, category: t.category,
+    owner: t.owner, priority: t.priority,
+    action_week: t.actionWeek, action_month: t.actionMonth,
+    notes: t.notes, photos: JSON.stringify(t.photos||[]),
+    completed_at: t.completedAt||null
+  };
+}
+
+// ── FILTERS ──────────────────────────────────────────────────
+function toggleFilter(btn){
+  const f=btn.dataset.f, v=btn.dataset.v;
+  if(AF[f].has(v)){AF[f].delete(v);btn.classList.remove('active');}
+  else{AF[f].add(v);btn.classList.add('active');}
+  render();
+}
+function clearFilters(){
+  AF={owner:new Set(),priority:new Set()};
+  document.querySelectorAll('.filter-chip').forEach(c=>c.classList.remove('active'));
+  render();
+}
+function matches(t){
+  if(t.completedAt) return false;
+  const oOk=AF.owner.size===0||AF.owner.has(t.owner)||(AF.owner.has('Matt')&&t.owner==='Both')||(AF.owner.has('Alison')&&t.owner==='Both');
+  const pOk=AF.priority.size===0||AF.priority.has(t.priority);
+  return oOk&&pOk;
+}
+
+// ── ADD ──────────────────────────────────────────────────────
+function toggleAddDetails(){ document.getElementById('add-details').classList.toggle('open'); }
+async function quickAdd(){
+  const title=document.getElementById('new-task-title').value.trim();
+  if(!title) return;
+  const open=document.getElementById('add-details').classList.contains('open');
+  const t={
+    id:uid(), title,
+    category: open?document.getElementById('nc').value:'Other',
+    owner: open?document.getElementById('no').value:'Matt',
+    priority: open?document.getElementById('np').value:'week',
+    actionWeek:'', actionMonth:'', notes:'', photos:[], completedAt:null
+  };
+  tasks.unshift(t);
+  render();
+  document.getElementById('new-task-title').value='';
+  await upsertTask(t);
+}
+
+// ── COMPLETE ─────────────────────────────────────────────────
+async function toggleComplete(e,id){
+  e.stopPropagation();
+  const t=tasks.find(t=>t.id===id);
+  if(!t) return;
+  t.completedAt = t.completedAt ? null : Date.now();
+  render();
+  await upsertTask(t);
+}
+
+// ── DETAIL ───────────────────────────────────────────────────
+function toggleDetail(id){
+  const el=document.getElementById('d-'+id);
+  const ch=document.getElementById('ch-'+id);
+  const was=el.classList.contains('open');
+  document.querySelectorAll('.task-detail.open').forEach(x=>x.classList.remove('open'));
+  document.querySelectorAll('.task-chevron.open').forEach(x=>x.classList.remove('open'));
+  if(!was){el.classList.add('open');ch.classList.add('open');}
+}
+async function saveTask(id){
+  const t=tasks.find(t=>t.id===id);if(!t) return;
+  t.title=document.getElementById('ti-'+id).value;
+  t.category=document.getElementById('ca-'+id).value;
+  t.owner=document.getElementById('ow-'+id).value;
+  t.priority=document.getElementById('pr-'+id).value;
+  t.actionWeek=document.getElementById('aw-'+id).value;
+  t.actionMonth=document.getElementById('am-'+id).value;
+  t.notes=document.getElementById('no-'+id).value;
+  render();
+  await upsertTask(t);
+  setTimeout(()=>{const el=document.getElementById('d-'+id);const ch=document.getElementById('ch-'+id);if(el)el.classList.add('open');if(ch)ch.classList.add('open');},10);
+}
+async function deleteTask(id){
+  if(!confirm('Delete this task?')) return;
+  tasks=tasks.filter(t=>t.id!==id);
+  render();
+  await removeTask(id);
+}
+
+// ── PHOTOS ───────────────────────────────────────────────────
+function triggerPhoto(id){ document.getElementById('pi-'+id).click(); }
+function handlePhoto(id,inp){
+  const t=tasks.find(t=>t.id===id);
+  if(!t||!inp.files.length) return;
+  if(!t.photos) t.photos=[];
+  const r=new FileReader();
+  r.onload=async e=>{
+    t.photos.push(e.target.result);
+    renderPhotos(id);
+    updatePhotoTag(id);
+    await upsertTask(t);
+  };
+  r.readAsDataURL(inp.files[0]);
+  inp.value='';
+}
+function renderPhotos(id){
+  const t=tasks.find(t=>t.id===id);
+  const c=document.getElementById('pg-'+id);
+  if(!c||!t) return;
+  c.innerHTML=photoHTML(t);
+}
+function photoHTML(t){
+  return (t.photos||[]).map((s,i)=>`<img class="photo-thumb" src="${s}" onclick="openLb('${t.id}',${i})">`).join('')+
+    `<button class="photo-add-btn" onclick="triggerPhoto('${t.id}')">+</button><input class="photo-input" type="file" accept="image/*" id="pi-${t.id}" onchange="handlePhoto('${t.id}',this)">`;
+}
+function updatePhotoTag(id){
+  const t=tasks.find(t=>t.id===id);
+  const el=document.getElementById('ptag-'+id);
+  if(el&&t){el.style.display=t.photos&&t.photos.length?'inline':'none';el.textContent='📷 '+t.photos.length;}
+}
+function openLb(tid,idx){
+  const t=tasks.find(t=>t.id===tid);
+  if(!t||!t.photos[idx]) return;
+  lbTask=tid;lbIdx=idx;
+  document.getElementById('lb-img').src=t.photos[idx];
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox(){ document.getElementById('lightbox').classList.remove('open');lbTask=null;lbIdx=null; }
+async function deletePhoto(){
+  const t=tasks.find(t=>t.id===lbTask);
+  if(!t) return;
+  t.photos.splice(lbIdx,1);
+  closeLightbox();
+  renderPhotos(lbTask);
+  updatePhotoTag(lbTask);
+  await upsertTask(t);
+}
+
+// ── RENDER ───────────────────────────────────────────────────
+function render(){
+  renderStats();
+  const con=document.getElementById('task-sections');con.innerHTML='';
+  CATS.forEach(cat=>{
+    const active=tasks.filter(t=>!t.completedAt&&t.category===cat&&matches(t));
+    const done=tasks.filter(t=>t.completedAt&&t.category===cat);
+    if(!active.length&&!done.length) return;
+    const key=cat.replace(/[\s&]/g,'_');
+    const sec=document.createElement('div');sec.className='category-section';
+    sec.innerHTML=`
+      <div class="category-header" onclick="toggleSec('${key}')">
+        <div class="category-title"><span class="category-name">${cat}</span><span class="category-count">${active.length}</span></div>
+        <span class="category-toggle" id="ct-${key}">▾</span>
+      </div>
+      <div id="cs-${key}">
+        <div class="task-list">${active.length?active.map(rt).join(''):'<div class="empty-state">All clear ✓</div>'}</div>
+        ${done.length?`<div class="completed-section">
+          <div class="completed-toggle" onclick="toggleDone('${key}')"><span id="ca-${key}">▸</span> ${done.length} completed (last 2 weeks)</div>
+          <div id="cl-${key}" style="display:none"><div class="task-list">${done.map(rt).join('')}</div></div>
+        </div>`:''}
+      </div>`;
+    con.appendChild(sec);
+  });
+}
+
+function rt(t){
+  const ot=t.owner==='Matt'?'tag-owner-matt':t.owner==='Alison'?'tag-owner-alison':'tag-owner-both';
+  const pm={week:['This Week','tag-priority-week'],soon:['Soon','tag-priority-soon'],month:['This Month','tag-priority-month'],later:['Longer Term','tag-priority-later']};
+  const [pl,pt]=pm[t.priority]||['Later','tag-priority-later'];
+  const act=t.actionWeek||t.actionMonth||'';
+  const hn=t.notes&&t.notes.trim().length>0;
+  const hp=t.photos&&t.photos.length>0;
+  return `<div class="task-item${t.completedAt?' completed':''}" id="tiw-${t.id}">
+    <div class="task-row" onclick="toggleDetail('${t.id}')">
+      <div class="task-check${t.completedAt?' checked':''}" onclick="toggleComplete(event,'${t.id}')"></div>
+      <div class="task-body">
+        <div class="task-title">${esc(t.title)}</div>
+        <div class="task-meta">
+          <span class="tag ${ot}">${t.owner}</span>
+          <span class="tag ${pt}">${pl}</span>
+          ${hn?'<span class="tag tag-note">📝 Notes</span>':''}
+          <span class="tag tag-photo" id="ptag-${t.id}" style="display:${hp?'inline':'none'}">📷 ${hp?t.photos.length:0}</span>
+        </div>
+        ${act?`<div class="task-action-preview">${esc(act)}</div>`:''}
+      </div>
+      <span class="task-chevron" id="ch-${t.id}">›</span>
+    </div>
+    <div class="task-detail" id="d-${t.id}">
+      <div class="dl">Notes</div>
+      <textarea class="notes-area" id="no-${t.id}" placeholder="Add notes, context, links, or anything else…">${esc(t.notes||'')}</textarea>
+      <div class="dl">Photos</div>
+      <div class="photos-grid" id="pg-${t.id}">${photoHTML(t)}</div>
+      <div class="dl">Edit task</div>
+      <div class="detail-grid">
+        <div class="detail-field" style="grid-column:1/-1"><label>Task name</label><input type="text" id="ti-${t.id}" value="${esc(t.title)}"></div>
+        <div class="detail-field"><label>Category</label><select id="ca-${t.id}">${CATS.map(c=>`<option${c===t.category?' selected':''}>${c}</option>`).join('')}</select></div>
+        <div class="detail-field"><label>Owner</label><select id="ow-${t.id}">${['Matt','Alison','Both'].map(o=>`<option${o===t.owner?' selected':''}>${o}</option>`).join('')}</select></div>
+        <div class="detail-field"><label>Priority</label><select id="pr-${t.id}">
+          <option value="week"${t.priority==='week'?' selected':''}>This Week</option>
+          <option value="soon"${t.priority==='soon'?' selected':''}>Soon</option>
+          <option value="month"${t.priority==='month'?' selected':''}>This Month</option>
+          <option value="later"${t.priority==='later'?' selected':''}>Longer Term</option>
+        </select></div>
+        <div class="detail-field"><label>Action this week</label><input type="text" id="aw-${t.id}" value="${esc(t.actionWeek||'')}"></div>
+        <div class="detail-field"><label>Action this month</label><input type="text" id="am-${t.id}" value="${esc(t.actionMonth||'')}"></div>
+      </div>
+      <div class="detail-actions">
+        <button class="btn-sm btn-delete" onclick="deleteTask('${t.id}')">Delete</button>
+        <button class="btn-sm btn-save" onclick="saveTask('${t.id}')">Save changes</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderStats(){
+  const a=tasks.filter(t=>!t.completedAt);
+  document.getElementById('stats-bar').innerHTML=`
+    <div class="stat"><div class="stat-num">${a.length}</div><div class="stat-label">Total</div></div>
+    <div class="stat-divider"></div>
+    <div class="stat"><div class="stat-num">${a.filter(t=>t.priority==='week').length}</div><div class="stat-label">This Week</div></div>
+    <div class="stat-divider"></div>
+    <div class="stat"><div class="stat-num">${a.filter(t=>t.owner==='Matt'||t.owner==='Both').length}</div><div class="stat-label">Matt</div></div>
+    <div class="stat-divider"></div>
+    <div class="stat"><div class="stat-num">${a.filter(t=>t.owner==='Alison'||t.owner==='Both').length}</div><div class="stat-label">Alison</div></div>
+    <div class="stat-divider"></div>
+    <div class="stat"><div class="stat-num">${tasks.filter(t=>t.completedAt).length}</div><div class="stat-label">Done</div></div>`;
+}
+function toggleSec(k){
+  const el=document.getElementById('cs-'+k),ar=document.getElementById('ct-'+k);
+  const h=el.style.display==='none';el.style.display=h?'block':'none';ar.classList.toggle('collapsed',!h);
+}
+function toggleDone(k){
+  const el=document.getElementById('cl-'+k),ar=document.getElementById('ca-'+k);
+  const h=el.style.display==='none';el.style.display=h?'block':'none';ar.textContent=h?'▾':'▸';
+}
+</script>
+</body>
+</html>
